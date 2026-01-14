@@ -1,0 +1,212 @@
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '@/lib/supabaseClient'
+import { CldUploadWidget } from 'next-cloudinary'
+import { Plus, Upload, Link as LinkIcon, Save, Loader2 } from 'lucide-react'
+
+export default function AdminPage() {
+    const [loading, setLoading] = useState(false)
+    const [formData, setFormData] = useState({
+        slug: '',
+        partner_name: '',
+        proposer_name: '',
+        passcode: '',
+        music_url: '',
+        photos: [] as string[],
+    })
+    const [successLink, setSuccessLink] = useState('')
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value })
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+        setSuccessLink('')
+
+        try {
+            // Validate photos
+            if (formData.photos.length < 3) {
+                alert('Please upload at least 3 photos for the story.')
+                setLoading(false)
+                return
+            }
+
+            const { data, error } = await supabase
+                .from('val_journeys')
+                .insert([
+                    {
+                        slug: formData.slug,
+                        partner_name: formData.partner_name,
+                        proposer_name: formData.proposer_name,
+                        passcode: formData.passcode,
+                        music_url: formData.music_url,
+                        photos: formData.photos, // store as JSON array
+                        is_accepted: false,
+                    },
+                ])
+                .select()
+
+            if (error) throw error
+
+            setSuccessLink(`${window.location.origin}/${formData.slug}`)
+            alert('Journey created successfully!')
+        } catch (error: any) {
+            console.error('Error creating journey:', error)
+            alert('Error creating journey: ' + error.message)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <div className="min-h-screen bg-neutral-950 text-neutral-100 p-8 font-sans">
+            <div className="max-w-2xl mx-auto space-y-8">
+                <header className="space-y-2 border-b border-neutral-800 pb-6">
+                    <h1 className="text-3xl font-serif text-rose-500">Valentine Engine Admin</h1>
+                    <p className="text-neutral-400">Create a new digital proposal journey.</p>
+                </header>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-neutral-300">Slug (URL Path)</label>
+                            <input
+                                type="text"
+                                name="slug"
+                                required
+                                placeholder="e.g. sarah-and-tom"
+                                value={formData.slug}
+                                onChange={handleInputChange}
+                                className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-neutral-300">Passcode (Answer)</label>
+                            <input
+                                type="text"
+                                name="passcode"
+                                required
+                                placeholder="e.g. 10122020 or 'Paris'"
+                                value={formData.passcode}
+                                onChange={handleInputChange}
+                                className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-neutral-300">Partner Name</label>
+                            <input
+                                type="text"
+                                name="partner_name"
+                                required
+                                placeholder="e.g. Sarah"
+                                value={formData.partner_name}
+                                onChange={handleInputChange}
+                                className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-neutral-300">Proposer Name</label>
+                            <input
+                                type="text"
+                                name="proposer_name"
+                                required
+                                placeholder="e.g. Tom"
+                                value={formData.proposer_name}
+                                onChange={handleInputChange}
+                                className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-neutral-300">Background Music (MP3 URL)</label>
+                        <input
+                            type="url"
+                            name="music_url"
+                            placeholder="https://example.com/song.mp3"
+                            value={formData.music_url}
+                            onChange={handleInputChange}
+                            className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                        />
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="text-sm font-medium text-neutral-300 block">Story Photos (3-5 Recommended)</label>
+                        <div className="flex flex-wrap gap-4">
+                            {formData.photos.map((url, idx) => (
+                                <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-neutral-700">
+                                    <img src={url} alt={`Story ${idx}`} className="w-full h-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(mock => ({ ...mock, photos: mock.photos.filter((_, i) => i !== idx) }))}
+                                        className="absolute top-0 right-0 bg-red-500/80 text-white p-1 rounded-bl"
+                                    >
+                                        &times;
+                                    </button>
+                                </div>
+                            ))}
+
+                            <CldUploadWidget
+                                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_PRESET}
+                                onSuccess={(result: any) => {
+                                    if (result.info?.secure_url) {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            photos: [...prev.photos, result.info.secure_url]
+                                        }))
+                                    }
+                                }}
+                            >
+                                {({ open }) => (
+                                    <button
+                                        type="button"
+                                        onClick={() => open()}
+                                        className="w-24 h-24 flex items-center justify-center border-2 border-dashed border-neutral-700 rounded-lg hover:border-rose-500 hover:text-rose-500 transition-colors"
+                                    >
+                                        <Plus className="w-6 h-6" />
+                                    </button>
+                                )}
+                            </CldUploadWidget>
+                        </div>
+                        <p className="text-xs text-neutral-500">Upload at least 3 photos for the cinematic scroll effect.</p>
+                    </div>
+
+                    <div className="pt-4">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-700 text-white font-medium py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                            {loading ? 'Creating Journey...' : 'Generate Proposal Link'}
+                        </button>
+                    </div>
+                </form>
+
+                {successLink && (
+                    <div className="mt-8 p-4 bg-green-900/20 border border-green-800 rounded-lg space-y-2 animate-in fade-in slide-in-from-bottom-4">
+                        <h3 className="text-green-400 font-medium flex items-center gap-2">
+                            <LinkIcon className="w-4 h-4" />
+                            Journey Live!
+                        </h3>
+                        <div className="flex items-center gap-2 bg-black/30 p-2 rounded">
+                            <code className="text-sm flex-1 break-all text-green-200">{successLink}</code>
+                            <button
+                                onClick={() => navigator.clipboard.writeText(successLink)}
+                                className="text-xs bg-green-800 hover:bg-green-700 px-2 py-1 rounded text-white"
+                            >
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
