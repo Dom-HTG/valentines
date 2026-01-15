@@ -11,6 +11,7 @@ export default function AdminPage() {
         slug: '',
         partner_name: '',
         proposer_name: '',
+        proposer_phone: '',
         passcode: '',
         music_url: '',
         photos: [] as string[],
@@ -81,6 +82,7 @@ export default function AdminPage() {
                         slug: formData.slug,
                         partner_name: formData.partner_name,
                         proposer_name: formData.proposer_name,
+                        proposer_phone: formData.proposer_phone,
                         passcode: formData.passcode,
                         music_url: formData.music_url,
                         photos: formData.photos, // store as JSON array
@@ -158,6 +160,19 @@ export default function AdminPage() {
                                 required
                                 placeholder="e.g. Tom"
                                 value={formData.proposer_name}
+                                onChange={handleInputChange}
+                                className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-neutral-300">Proposer Phone</label>
+                            <input
+                                type="tel"
+                                name="proposer_phone"
+                                required
+                                placeholder="e.g. +1234567890"
+                                value={formData.proposer_phone}
                                 onChange={handleInputChange}
                                 className="w-full bg-neutral-900 border border-neutral-800 rounded-lg px-4 py-2 focus:ring-2 focus:ring-rose-500 focus:outline-none"
                             />
