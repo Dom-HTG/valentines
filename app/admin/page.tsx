@@ -2,11 +2,11 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { CldUploadWidget } from 'next-cloudinary'
-import { Plus, Upload, Link as LinkIcon, Save, Loader2 } from 'lucide-react'
+import { Plus, Upload, Link as LinkIcon, Save, Loader2, X } from 'lucide-react'
 
 export default function AdminPage() {
     const [loading, setLoading] = useState(false)
+    const [uploading, setUploading] = useState(false)
     const [formData, setFormData] = useState({
         slug: '',
         partner_name: '',
@@ -19,6 +19,46 @@ export default function AdminPage() {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({ ...formData, [e.target.name]: e.target.value })
+    }
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return
+
+        setUploading(true)
+        const files = Array.from(e.target.files)
+        const newPhotos: string[] = []
+
+        try {
+            for (const file of files) {
+                const fileExt = file.name.split('.').pop()
+                const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+                const filePath = `${formData.slug || 'temp'}/${fileName}`
+
+                const { error: uploadError } = await supabase.storage
+                    .from('valentine_photos')
+                    .upload(filePath, file)
+
+                if (uploadError) throw uploadError
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('valentine_photos')
+                    .getPublicUrl(filePath)
+
+                newPhotos.push(publicUrl)
+            }
+
+            setFormData(prev => ({
+                ...prev,
+                photos: [...prev.photos, ...newPhotos]
+            }))
+        } catch (error: any) {
+            console.error('Error uploading image:', error)
+            alert('Error uploading image: ' + error.message)
+        } finally {
+            setUploading(false)
+            // Reset input
+            e.target.value = ''
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -140,41 +180,38 @@ export default function AdminPage() {
                         <label className="text-sm font-medium text-neutral-300 block">Story Photos (3-5 Recommended)</label>
                         <div className="flex flex-wrap gap-4">
                             {formData.photos.map((url, idx) => (
-                                <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-neutral-700">
+                                <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border border-neutral-700 group">
                                     <img src={url} alt={`Story ${idx}`} className="w-full h-full object-cover" />
                                     <button
                                         type="button"
                                         onClick={() => setFormData(mock => ({ ...mock, photos: mock.photos.filter((_, i) => i !== idx) }))}
-                                        className="absolute top-0 right-0 bg-red-500/80 text-white p-1 rounded-bl"
+                                        className="absolute top-0 right-0 bg-red-500/80 text-white p-1 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
-                                        &times;
+                                        <X className="w-3 h-3" />
                                     </button>
                                 </div>
                             ))}
 
-                            <CldUploadWidget
-                                uploadPreset={process.env.NEXT_PUBLIC_CLOUDINARY_PRESET}
-                                onSuccess={(result: any) => {
-                                    if (result.info?.secure_url) {
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            photos: [...prev.photos, result.info.secure_url]
-                                        }))
-                                    }
-                                }}
-                            >
-                                {({ open }) => (
-                                    <button
-                                        type="button"
-                                        onClick={() => open()}
-                                        className="w-24 h-24 flex items-center justify-center border-2 border-dashed border-neutral-700 rounded-lg hover:border-rose-500 hover:text-rose-500 transition-colors"
-                                    >
-                                        <Plus className="w-6 h-6" />
-                                    </button>
+                            <label className="w-24 h-24 flex flex-col items-center justify-center border-2 border-dashed border-neutral-700 rounded-lg hover:border-rose-500 hover:text-rose-500 transition-colors cursor-pointer relative">
+                                {uploading ? (
+                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Upload className="w-6 h-6" />
+                                        <span className="text-[10px] mt-1 font-medium">Upload</span>
+                                    </>
                                 )}
-                            </CldUploadWidget>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFileUpload}
+                                    disabled={uploading}
+                                />
+                            </label>
                         </div>
-                        <p className="text-xs text-neutral-500">Upload at least 3 photos for the cinematic scroll effect.</p>
+                        <p className="text-xs text-neutral-500">Images upload to &apos;valentine_photos&apos; bucket automatically.</p>
                     </div>
 
                     <div className="pt-4">
